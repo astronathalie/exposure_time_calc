@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RLMT Exposure Time Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0c0e14;
+  --surface:#151823;
+  --surface2:#1c2030;
+  --border:#2a2e3e;
+  --text:#e4e6ef;
+  --text2:#8b90a8;
+  --text3:#5a5f77;
+  --accent:#6c9cfc;
+  --accent2:#4a7ae8;
+  --warn:#e8a44a;
+  --warn-bg:rgba(232,164,74,0.08);
+  --danger:#e85a5a;
+  --g-color:#7ec8a0;
+  --r-color:#e8a070;
+  --i-color:#c47ed4;
+  --ha-color:#e85a5a;
+  --sii-color:#d44a8a;
+  --oiii-color:#5ac8e8;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'DM Sans',sans-serif;
+}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  min-height:100vh;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:2rem 1rem;
+}
+.calc{width:100%;max-width:580px}
+.header{margin-bottom:2rem;position:relative}
+.header::after{content:'';position:absolute;bottom:-1rem;left:0;width:48px;height:2px;background:var(--accent);border-radius:1px}
+.header h1{font-family:var(--mono);font-size:1.1rem;font-weight:500;letter-spacing:0.04em;color:var(--text);margin-bottom:0.35rem}
+.header p{font-size:0.82rem;color:var(--text3);font-family:var(--mono);font-weight:300}
+
+.section{margin-bottom:1.4rem}
+.section-label{
+  font-size:0.7rem;color:var(--text3);font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.6rem;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.section-label .right{text-transform:none;letter-spacing:0;font-weight:300;color:var(--text3)}
+
+/* filter selector */
+.filter-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.filter-btn{
+  padding:0.65rem 0.3rem;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;
+  font-family:var(--mono);font-size:0.8rem;font-weight:500;
+  color:var(--text3);cursor:pointer;transition:all 0.15s;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.filter-btn .filter-letter{font-size:0.95rem;font-weight:600;white-space:nowrap}
+.filter-btn .filter-zp{font-size:0.6rem;color:var(--text3);font-weight:300}
+.filter-btn:hover:not(.active){color:var(--text2);border-color:#3a3e4e}
+.filter-btn.active{background:var(--surface2);color:var(--text)}
+.filter-btn.active[data-filter=g]{border-color:var(--g-color);box-shadow:inset 0 -2px 0 var(--g-color)}
+.filter-btn.active[data-filter=r]{border-color:var(--r-color);box-shadow:inset 0 -2px 0 var(--r-color)}
+.filter-btn.active[data-filter=i]{border-color:var(--i-color);box-shadow:inset 0 -2px 0 var(--i-color)}
+.filter-btn.active[data-filter=ha]{border-color:var(--ha-color);box-shadow:inset 0 -2px 0 var(--ha-color)}
+.filter-btn.active[data-filter=sii]{border-color:var(--sii-color);box-shadow:inset 0 -2px 0 var(--sii-color)}
+.filter-btn.active[data-filter=oiii]{border-color:var(--oiii-color);box-shadow:inset 0 -2px 0 var(--oiii-color)}
+
+/* mode toggle */
+.mode-toggle{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.mode-btn{
+  flex:1;padding:0.65rem 0.5rem;font-family:var(--mono);font-size:0.75rem;
+  font-weight:400;color:var(--text3);background:transparent;border:none;
+  cursor:pointer;transition:all 0.2s;
+}
+.mode-btn.active{color:var(--accent);background:var(--surface2)}
+.mode-btn:first-child{border-right:1px solid var(--border)}
+.mode-btn:hover:not(.active){color:var(--text2)}
+
+/* field grids */
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.input-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.input-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.field{position:relative}
+.field label{
+  display:block;font-size:0.68rem;color:var(--text3);font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.4rem;
+}
+.field input{
+  width:100%;padding:0.6rem 0.75rem;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;color:var(--text);
+  font-family:var(--mono);font-size:0.95rem;font-weight:400;
+  outline:none;transition:border-color 0.2s;
+}
+.field input:focus{border-color:var(--accent)}
+.field input:disabled{opacity:0.4;cursor:not-allowed}
+.field .unit{
+  position:absolute;right:0.75rem;bottom:0.65rem;font-size:0.7rem;
+  color:var(--text3);font-family:var(--mono);pointer-events:none;
+}
+
+/* sliders */
+.slider-row{display:flex;align-items:center;gap:12px}
+.slider-row input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:3px;background:var(--border);border-radius:2px;outline:none;
+}
+.slider-row input[type=range]:disabled{opacity:0.3}
+.slider-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+  border:2px solid var(--bg);box-shadow:0 0 0 1px var(--accent);
+}
+.slider-row input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;
+  border:2px solid var(--bg);box-shadow:0 0 0 1px var(--accent);
+}
+.slider-row input[type=number]{
+  width:78px;padding:0.45rem 0.5rem;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;color:var(--text);
+  font-family:var(--mono);font-size:0.85rem;outline:none;text-align:right;
+}
+.slider-row input[type=number]:focus{border-color:var(--accent)}
+.slider-row input[type=number]:disabled{opacity:0.4;cursor:not-allowed}
+
+/* SNR preset chips */
+.snr-preset{
+  flex:1;padding:0.45rem 0.4rem;background:var(--surface);
+  border:1px solid var(--border);border-radius:5px;
+  font-family:var(--mono);font-size:0.68rem;color:var(--text3);
+  cursor:pointer;transition:all 0.15s;
+}
+.snr-preset:hover{color:var(--text2);border-color:#3a3e4e}
+
+/* sky source toggle */
+.sky-toggle{
+  display:flex;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;overflow:hidden;margin-bottom:0.8rem;
+}
+.sky-toggle button{
+  flex:1;padding:0.5rem 0.5rem;font-family:var(--mono);font-size:0.7rem;
+  color:var(--text3);background:transparent;border:none;cursor:pointer;
+  transition:all 0.2s;
+}
+.sky-toggle button.active{color:var(--accent);background:var(--surface2)}
+.sky-toggle button:not(:last-child){border-right:1px solid var(--border)}
+.sky-toggle button:hover:not(.active){color:var(--text2)}
+
+.sky-readout{
+  font-family:var(--mono);font-size:0.72rem;color:var(--text2);
+  font-weight:400;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;padding:0.55rem 0.75rem;margin-top:0.6rem;
+  display:flex;justify-content:space-between;
+}
+.sky-readout .label{color:var(--text3);font-weight:300}
+.sky-readout .filter-tag{
+  display:inline-block;padding:0 6px;border-radius:3px;
+  background:var(--surface2);margin-right:4px;
+}
+
+.phase-labels{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:0.62rem;color:var(--text3);
+  margin-top:0.3rem;padding:0 4px;
+}
+
+/* results */
+.results{margin-top:1.5rem;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.results-header{
+  padding:0.6rem 1rem;background:var(--surface);
+  border-bottom:1px solid var(--border);
+  font-size:0.7rem;color:var(--text3);font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:0.08em;
+  display:flex;justify-content:space-between;
+}
+.regime-tag{text-transform:none;letter-spacing:0;color:var(--text2);font-weight:400}
+.results-body{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.result-cell{background:var(--bg);padding:1rem 1rem}
+.result-label{
+  font-size:0.68rem;color:var(--text3);font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;
+}
+.result-num{font-family:var(--mono);font-size:1.35rem;font-weight:600;color:var(--text)}
+.result-unit{font-weight:300;font-size:0.85rem;color:var(--text2);margin-left:2px}
+
+/* noise breakdown */
+.noise-section{background:var(--surface);border-top:1px solid var(--border);padding:0.85rem 1rem}
+.noise-title{
+  font-size:0.66rem;color:var(--text3);font-family:var(--mono);
+  text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.6rem;
+}
+.noise-bars{display:flex;flex-direction:column;gap:5px}
+.noise-row{
+  display:grid;grid-template-columns:60px 1fr 90px;
+  align-items:center;gap:10px;font-family:var(--mono);font-size:0.72rem;
+}
+.noise-name{color:var(--text2)}
+.noise-bar-track{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.noise-bar-fill{height:100%;border-radius:3px;transition:width 0.25s ease}
+.noise-bar-fill.source{background:var(--accent)}
+.noise-bar-fill.sky{background:var(--warn)}
+.noise-bar-fill.read{background:#9080d4}
+.noise-val{color:var(--text3);text-align:right}
+.noise-val .pct{color:var(--text2)}
+
+.results-footer{
+  background:var(--surface);border-top:1px solid var(--border);
+  padding:0.6rem 1rem;font-size:0.72rem;color:var(--text3);
+  font-family:var(--mono);display:flex;justify-content:space-between;
+  flex-wrap:wrap;gap:8px;
+}
+
+.warning{
+  margin-top:0.75rem;background:var(--warn-bg);
+  border:1px solid rgba(232,164,74,0.2);border-radius:6px;
+  padding:0.7rem 1rem;font-size:0.78rem;color:var(--warn);
+  font-family:var(--mono);font-weight:400;display:none;line-height:1.5;
+}
+
+/* details */
+.details{margin-top:1.5rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);overflow:hidden}
+.details summary{
+  padding:0.7rem 1rem;font-family:var(--mono);font-size:0.72rem;
+  color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;
+  cursor:pointer;user-select:none;list-style:none;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.details summary::-webkit-details-marker{display:none}
+.details summary::after{content:'+';font-size:1rem;color:var(--text3);font-weight:300}
+.details[open] summary::after{content:'−'}
+.details summary:hover{color:var(--text2)}
+.details-body{padding:0 1rem 1rem 1rem;border-top:1px solid var(--border);padding-top:1rem}
+.params-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 12px;
+  font-family:var(--mono);font-size:0.72rem;
+}
+.param-item{display:flex;flex-direction:column;gap:2px}
+.param-name{color:var(--text3);font-size:0.66rem;text-transform:uppercase;letter-spacing:0.05em}
+.param-val{color:var(--text2)}
+
+.formula{
+  margin-top:1rem;padding:0.8rem 1rem;background:var(--bg);
+  border:1px solid var(--border);border-radius:6px;
+  font-family:var(--mono);font-size:0.7rem;color:var(--text3);line-height:1.7;
+}
+.formula .op{color:var(--text2)}
+
+@media (max-width:520px){
+  .params-grid{grid-template-columns:1fr 1fr}
+  .input-row-3,.input-row-4{grid-template-columns:1fr 1fr}
+  .filter-row{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="calc">
+  <div class="header">
+    <h1>Exposure time calculator</h1>
+    <p>RLMT 20-inch · gri + Hα/[SII]/[OIII] · Krisciunas-Schaefer sky model</p>
+  </div>
+
+  <!-- FILTER -->
+  <div class="section">
+    <div class="section-label">Filter</div>
+    <div class="filter-row">
+      <button class="filter-btn active" data-filter="g" onclick="setFilter('g')">
+        <span class="filter-letter">g</span><span class="filter-zp">ZP 22.9</span>
+      </button>
+      <button class="filter-btn" data-filter="r" onclick="setFilter('r')">
+        <span class="filter-letter">r</span><span class="filter-zp">ZP 22.3</span>
+      </button>
+      <button class="filter-btn" data-filter="i" onclick="setFilter('i')">
+        <span class="filter-letter">i</span><span class="filter-zp">ZP 21.2</span>
+      </button>
+      <button class="filter-btn" data-filter="ha" onclick="setFilter('ha')">
+        <span class="filter-letter">Hα</span><span class="filter-zp">ZP 18.1</span>
+      </button>
+      <button class="filter-btn" data-filter="sii" onclick="setFilter('sii')">
+        <span class="filter-letter">[SII]</span><span class="filter-zp">ZP 18.1</span>
+      </button>
+      <button class="filter-btn" data-filter="oiii" onclick="setFilter('oiii')">
+        <span class="filter-letter">[OIII]</span><span class="filter-zp">ZP 18.7</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODE -->
+  <div class="section">
+    <div class="section-label">Mode</div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="mode-snr" onclick="setMode('snr')">S/N → exposure</button>
+      <button class="mode-btn" id="mode-exp" onclick="setMode('exp')">Exposure → S/N</button>
+    </div>
+  </div>
+
+  <!-- TARGET -->
+  <div class="section">
+    <div class="section-label">
+      <span>Target</span>
+      <span class="right" id="nb-mode-tag" style="display:none">narrowband</span>
+    </div>
+
+    <!-- Compact / Extended source model toggle -->
+    <div style="margin-bottom:0.7rem">
+      <div class="sky-toggle">
+        <button class="active" id="srcmodel-compact" onclick="setSrcModel('compact')">Compact (Gaussian)</button>
+        <button id="srcmodel-extended" onclick="setSrcModel('extended')">Extended (uniform disk)</button>
+      </div>
+    </div>
+
+    <!-- Broadband mag input row (for NB observations using catalog r/V/g mag) -->
+    <div id="target-row-bb" style="display:none">
+      <div class="input-row-3">
+        <div class="field">
+          <label>Broadband mag</label>
+          <input type="number" id="bb-mag" value="11.0" step="0.1" oninput="calc()">
+          <span class="unit">mag</span>
+        </div>
+        <div class="field" id="bb-size-field">
+          <label id="bb-size-label">Source size</label>
+          <input type="number" id="bb-size" value="3.0" step="0.5" min="0.5" oninput="calc()">
+          <span class="unit" id="bb-size-unit">″ (FWHM)</span>
+        </div>
+        <div class="field">
+          <label>Target altitude</label>
+          <input type="number" id="alt-target-bb" value="60" step="5" min="10" max="90" oninput="calc()">
+          <span class="unit">°</span>
+        </div>
+      </div>
+      <div class="input-row" style="margin-top:0.55rem">
+        <div class="field">
+          <label>Mag is in</label>
+          <div class="sky-toggle" style="margin-bottom:0">
+            <button id="bbband-r" class="active" onclick="setBbBand('r')">r</button>
+            <button id="bbband-V" onclick="setBbBand('V')">V</button>
+            <button id="bbband-g" onclick="setBbBand('g')">g</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Source type</label>
+          <div class="sky-toggle" style="margin-bottom:0">
+            <button id="srctype-pn" class="active" onclick="setSrcType('pn')">PN</button>
+            <button id="srctype-star" onclick="setSrcType('star')">Star</button>
+            <button id="srctype-other" onclick="setSrcType('other')">Other</button>
+          </div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:0.66rem;color:var(--text3);margin-top:0.55rem;line-height:1.5" id="bb-help">
+        PN: assumes most r-band flux is line emission (Hα ~70%, [SII] ~10%, [OIII] in g ~85%).
+        Star: full bandwidth penalty (continuum source).
+        Other: continuum-only conservative estimate. Numbers are rough — ±0.5 mag.
+      </div>
+    </div>
+
+    <!-- Continuum/broadband input row (broadband filters g/r/i) -->
+    <div class="input-row-3" id="target-row-mag">
+      <div class="field">
+        <label>Magnitude</label>
+        <input type="number" id="mag" value="16.0" step="0.1" oninput="calc()">
+        <span class="unit">mag</span>
+      </div>
+      <div class="field" id="mag-size-field">
+        <label id="mag-size-label">Seeing</label>
+        <input type="number" id="fwhm" value="2.0" step="0.1" min="0.5" oninput="calc()">
+        <span class="unit" id="mag-size-unit">″</span>
+      </div>
+      <div class="field">
+        <label>Target altitude</label>
+        <input type="number" id="alt-target" value="60" step="5" min="10" max="90" oninput="calc()">
+        <span class="unit">°</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Derived surface brightness readout (only shown for extended mode) -->
+  <div class="sky-readout" id="sb-readout" style="display:none;margin-top:0.5rem">
+    <span><span class="label">surface brightness</span></span>
+    <span><span id="sb-readout-val">—</span></span>
+  </div>
+
+  <!-- DESIRED S/N or EXPOSURE -->
+  <div class="section" id="input-snr">
+    <div class="section-label">
+      <span>Desired S/N</span>
+      <span class="right" id="snr-context-tag" style="display:none">per pixel</span>
+    </div>
+    <div class="slider-row">
+      <input type="range" id="snr-slider" min="3" max="500" value="50" step="1"
+        oninput="document.getElementById('snr-val').value=this.value; calc();">
+      <input type="number" id="snr-val" value="50"
+        oninput="document.getElementById('snr-slider').value=this.value; calc();">
+    </div>
+    <div style="display:flex;gap:6px;margin-top:0.55rem">
+      <button class="snr-preset" onclick="setSnrPreset(3)">Just detected (3)</button>
+      <button class="snr-preset" onclick="setSnrPreset(10)">Detection (10)</button>
+      <button class="snr-preset" onclick="setSnrPreset(50)">Photometry (50)</button>
+    </div>
+  </div>
+
+  <div class="section" id="input-exp" style="display:none">
+    <div class="section-label">Exposure time</div>
+    <div class="slider-row">
+      <input type="range" id="exp-slider" min="1" max="1800" value="120" step="1"
+        oninput="document.getElementById('exp-val').value=this.value; calc();">
+      <input type="number" id="exp-val" value="120"
+        oninput="document.getElementById('exp-slider').value=this.value; calc();">
+    </div>
+  </div>
+
+  <!-- SKY MODEL -->
+  <div class="section">
+    <div class="section-label">
+      <span>Sky background</span>
+    </div>
+    <div class="sky-toggle">
+      <button class="active" id="sky-mode-model" onclick="setSkyMode('model')">Moon model</button>
+      <button id="sky-mode-custom" onclick="setSkyMode('custom')">Custom (measured)</button>
+    </div>
+
+    <!-- model -->
+    <div id="sky-panel-model">
+      <div class="input-row-3">
+        <div class="field">
+          <label>Phase angle</label>
+          <input type="number" id="moon-phase" value="180" step="5" min="0" max="180" oninput="calc()">
+          <span class="unit">°</span>
+        </div>
+        <div class="field">
+          <label>Moon-target sep</label>
+          <input type="number" id="moon-sep" value="90" step="5" min="0" max="180" oninput="calc()">
+          <span class="unit">°</span>
+        </div>
+        <div class="field">
+          <label>Moon altitude</label>
+          <input type="number" id="alt-moon" value="-10" step="5" min="-90" max="90" oninput="calc()">
+          <span class="unit">°</span>
+        </div>
+      </div>
+      <div style="margin-top:0.7rem">
+        <div class="slider-row">
+          <input type="range" id="phase-slider" min="0" max="180" step="1" value="180"
+            oninput="document.getElementById('moon-phase').value=this.value; calc();">
+          <span style="font-family:var(--mono);font-size:0.75rem;color:var(--text2);width:78px;text-align:right" id="phase-name">new</span>
+        </div>
+        <div class="phase-labels">
+          <span>full</span><span>gibbous</span><span>quarter</span><span>crescent</span><span>new</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- custom -->
+    <div id="sky-panel-custom" style="display:none">
+      <div class="field">
+        <label>Sky surface brightness</label>
+        <input type="number" id="sky-custom" value="21.0" step="0.1" min="14" max="23" oninput="calc()">
+        <span class="unit">mag/arcsec²</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:0.7rem;color:var(--text3);margin-top:0.5rem;line-height:1.5">
+        Use measured value for the current filter. Typical: dark&nbsp;~22 (g), 21 (r), 20 (i); near full moon&nbsp;~17–19.
+      </div>
+    </div>
+
+    <div class="sky-readout">
+      <span><span class="label">effective sky</span></span>
+      <span><span class="filter-tag" id="sky-filter-tag">g</span><span id="sky-mag-readout">—</span></span>
+    </div>
+  </div>
+
+  <!-- APERTURE & DETECTOR -->
+  <details class="details">
+    <summary>Aperture & detector</summary>
+    <div class="details-body">
+      <div class="input-row-3">
+        <div class="field">
+          <label>Aperture (×FWHM)</label>
+          <input type="number" id="ap-mult" value="1.5" step="0.1" min="0.5" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Saturation</label>
+          <input type="number" id="sat" value="60000" oninput="calc()">
+          <span class="unit">ADU</span>
+        </div>
+        <div class="field">
+          <label>Read noise</label>
+          <input type="number" id="rn" value="1.7" step="0.1" oninput="calc()">
+          <span class="unit">e⁻</span>
+        </div>
+      </div>
+      <div class="params-grid" style="margin-top:1rem">
+        <div class="param-item"><span class="param-name">Gain</span><span class="param-val">1.76 e⁻/ADU</span></div>
+        <div class="param-item"><span class="param-name">Pixel scale</span><span class="param-val">0.45 ″/pix</span></div>
+        <div class="param-item"><span class="param-name">Dark current</span><span class="param-val">≈ 0 e⁻/s</span></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- RESULTS -->
+  <div class="results">
+    <div class="results-header">
+      <span>Results</span>
+      <span class="regime-tag" id="regime-tag"></span>
+    </div>
+    <div class="results-body" id="results-body"></div>
+    <div class="noise-section">
+      <div class="noise-title">Noise contributions (variance)</div>
+      <div class="noise-bars" id="noise-bars"></div>
+    </div>
+    <div class="results-footer" id="results-footer"></div>
+  </div>
+
+  <div class="warning" id="warning"></div>
+
+  <div class="formula">
+    <span class="op">S/N =</span> R★·t·f<sub>ap</sub> / √(R★·t·f<sub>ap</sub> <span class="op">+</span> n<sub>pix</sub>·R<sub>sky</sub>·t <span class="op">+</span> n<sub>pix</sub>·N<sub>read</sub>²)<br>
+    <span class="op">R =</span> 10<sup>−0.4(m − ZP)</sup> e⁻/s ·  Sky from Krisciunas-Schaefer (1991) PASP 103, 1033<br>
+    <span class="op">NB:</span> Broadband-mag mode for PNe assumes line fractions Hα ~70%, [SII] ~10%, [OIII] ~85% of natural broadband flux. Real PNe vary by ×2; treat as ±0.5 mag estimate.
+  </div>
+</div>
+
+<script>
+// === SYSTEM PARAMETERS ===
+// Broadband ZPs are calibrated against SDSS field stars at X≈1.
+// Narrowband ZPs (continuum) are scaled from r/g by bandwidth ratio:
+//   ZP_NB = ZP_BB - 2.5*log10(BW_BB/BW_NB) - 0.1  (filter peak vs avg transmission fudge)
+//   r BW ~140 nm, g BW ~140 nm, NB BW ~3 nm  ->  ΔZP ~ -4.18
+// These ZPs aren't used directly for broadband-mag input mode, but they're kept
+// for sky-background scaling and for documentation.
+const FILTERS = {
+  g:    { zp: 22.9, sky_dark: 22.0, color_offset: -0.2, k_ext: 0.17, narrowband: false },
+  r:    { zp: 22.3, sky_dark: 21.0, color_offset:  0.1, k_ext: 0.10, narrowband: false },
+  i:    { zp: 21.2, sky_dark: 20.0, color_offset:  0.4, k_ext: 0.07, narrowband: false },
+  // Narrowband: 3 nm bandwidth assumed
+  // sky_dark for NB is approximate — accounts for ~21-22 mag/arcsec² airglow + continuum
+  // through a 3 nm filter at a dark site. Real NB sky is dominated by emission lines
+  // (Hα geocoronal, OH) and is filter-position-dependent. Treat as ±0.5 mag.
+  ha:   { zp: 18.1, sky_dark: 21.0, color_offset:  0.1, k_ext: 0.10, narrowband: true,
+          bandwidth_nm: 3.0, label: 'Hα' },
+  sii:  { zp: 18.1, sky_dark: 21.5, color_offset:  0.1, k_ext: 0.10, narrowband: true,
+          bandwidth_nm: 3.0, label: '[SII]' },
+  oiii: { zp: 18.7, sky_dark: 21.5, color_offset: -0.2, k_ext: 0.17, narrowband: true,
+          bandwidth_nm: 3.0, label: '[OIII]' }
+};
+// color_offset is m_band - V for the moon-illuminated sky (solar-like spectrum,
+// blue-shifted by Rayleigh scattering). Used to convert K-S V output to band.
+// Dark sky uses the dark_sky values directly (different spectrum from moonlight).
+const GAIN = 1.76;
+const PIXSCALE = 0.45;
+const DARK = 0;
+const V_DARK = 21.6;  // dark site V mag/arcsec^2
+
+let currentFilter = 'g';
+let mode = 'snr';
+let skyMode = 'model';
+let srcModel = 'compact';  // 'compact' (Gaussian point/PSF) or 'extended' (uniform disk)
+let bbBand = 'r';         // input broadband for NB filters: 'r', 'V', or 'g'
+let srcType = 'pn';       // 'pn', 'star', or 'other'
+
+// Line fraction lookup: for each NB filter, what fraction of broadband flux
+// (in the natural broadband for that NB filter) ends up in the NB filter passband?
+// For typical PNe the broadband flux is itself line-dominated, so most of the
+// r-band light IS Hα (+ [NII] + [SII]) and most of the g-band light IS [OIII] (+ Hβ).
+// The NB filter then captures the relevant line(s):
+//   Hα filter   (3 nm @ 6563): captures Hα; [NII] 6548/6584 mostly outside the 3 nm window
+//                              → ~70% of r-band flux in a typical PN (Hα alone)
+//   [SII] filter (3 nm @ 6720): captures [SII] 6716/6731 doublet only
+//                              → ~10% of r-band flux ([SII]/Hα ≈ 0.1–0.3, scaled)
+//   [OIII] filter (3 nm @ 5007): captures [OIII] 5007 (4959 outside)
+//                              → ~85% of g-band flux in a moderate-to-high excitation PN
+// Real PNe vary by ±factor of 2 (high-excitation: huge [OIII], weak [SII];
+// low-excitation: flipped). Treat as ±0.5 mag estimate.
+const NB_LINE_FRAC = {
+  ha:   { pn: 0.70, natural_bb: 'r' },
+  sii:  { pn: 0.10, natural_bb: 'r' },
+  oiii: { pn: 0.85, natural_bb: 'g' }
+};
+// V→r and V→g rough conversions for typical broadband colors
+// (used only when user enters the "wrong" band for the NB filter's natural pairing)
+const V_TO_BAND = {
+  pn:    { r: 0.0,  g: 0.0  },  // PN: messy, assume V≈r≈g (line-dominated)
+  star:  { r: 0.2,  g: -0.3 },  // typical solar-type: V−r≈0.2, V−g≈-0.3
+  other: { r: 0.2,  g: -0.3 }
+};
+
+// === ATMOSPHERE & MOON MODEL ===
+function airmass(altDeg) {
+  // Young 1994 secant-z approximation, robust at high airmass
+  const zd = 90 - altDeg;
+  if (zd >= 89.9) return 40;
+  const cz = Math.cos(zd * Math.PI / 180);
+  return 1 / (cz + 0.025 * Math.exp(-11 * cz));
+}
+
+// Krisciunas & Schaefer 1991 PASP 103, 1033: moon contribution to V sky brightness
+function ksMoonV(alphaDeg, rhoDeg, altMoon, altTarget, kV) {
+  if (altMoon <= 0) return null;  // moon below horizon
+  const a = Math.abs(alphaDeg);
+  // I*(alpha): illuminance of moon vs full
+  const I_star = Math.pow(10, -0.4 * (3.84 + 0.026 * a + 4e-9 * Math.pow(a, 4)));
+  // Scattering function f(rho)
+  const rho = Math.max(rhoDeg, 0.5);
+  const cosRho = Math.cos(rho * Math.PI / 180);
+  const f_rho = Math.pow(10, 5.36) * (1.06 + cosRho * cosRho)
+              + Math.pow(10, 6.15 - rho / 40);
+  // Airmasses
+  const X_m = airmass(altMoon);
+  const X_t = airmass(altTarget);
+  // Brightness in nanolamberts
+  const B = f_rho * I_star * Math.pow(10, -0.4 * kV * X_m)
+          * (1 - Math.pow(10, -0.4 * kV * X_t));
+  if (B <= 0) return null;
+  // V mag/arcsec^2 from B (nL): B = 34.08 * exp(20.7233 - 0.92104*V)
+  return (20.7233 - Math.log(B / 34.08)) / 0.92104;
+}
+
+// Compute total sky brightness in current band
+function computeSkyMag(filter, alphaDeg, rhoDeg, altMoon, altTarget) {
+  const f = FILTERS[filter];
+  // Dark sky in this band (intrinsic spectrum, NOT scaled by V)
+  const F_dark = Math.pow(10, -0.4 * f.sky_dark);
+  // Moon contribution: K-S gives V; convert to band using moonlight color offset
+  const V_moon = ksMoonV(alphaDeg, rhoDeg, altMoon, altTarget, f.k_ext);
+  let F_total = F_dark;
+  if (V_moon !== null) {
+    const m_moon = V_moon + f.color_offset;
+    const F_moon = Math.pow(10, -0.4 * m_moon);
+    F_total += F_moon;
+  }
+  return -2.5 * Math.log10(F_total);
+}
+
+// === PSF / APERTURE ===
+function encircled(fwhm, r_arc) {
+  const sigma = fwhm / 2.3548;
+  return 1 - Math.exp(-(r_arc * r_arc) / (2 * sigma * sigma));
+}
+function peakFraction(fwhm, pixscale) {
+  const sigma = fwhm / 2.3548;
+  const arg = pixscale / (2 * Math.sqrt(2) * sigma);
+  const e = erf(arg);
+  return e * e;
+}
+function erf(x) {
+  const sign = Math.sign(x);
+  x = Math.abs(x);
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741;
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+  const t = 1.0 / (1.0 + p * x);
+  const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return sign * y;
+}
+
+// === CCD EQUATION ===
+function snrFromTime(R_src, R_sky_pix, n_pix, rn, t, f_ap) {
+  const signal = R_src * t * f_ap;
+  const var_source = signal;
+  const var_sky = n_pix * R_sky_pix * t;
+  const var_read = n_pix * rn * rn;
+  const var_dark = n_pix * DARK * t;
+  const noise = Math.sqrt(var_source + var_sky + var_read + var_dark);
+  return { snr: signal / noise, var_source, var_sky, var_read, var_dark, signal };
+}
+function timeFromSNR(R_src, R_sky_pix, n_pix, rn, target, f_ap) {
+  const S = R_src * f_ap;
+  const a = S + n_pix * R_sky_pix + n_pix * DARK;
+  const b = n_pix * rn * rn;
+  const A = S * S;
+  const B = -target * target * a;
+  const C = -target * target * b;
+  const disc = B * B - 4 * A * C;
+  return (-B + Math.sqrt(disc)) / (2 * A);
+}
+
+// === UI HELPERS ===
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.filter === f));
+  const filterEntry = FILTERS[f];
+  document.getElementById('sky-filter-tag').textContent = filterEntry.label || f;
+
+  // Toggle narrowband UI: NB filters use broadband-mag input, broadband filters use direct mag input
+  const isNB = filterEntry.narrowband;
+  document.getElementById('nb-mode-tag').style.display = isNB ? '' : 'none';
+  document.getElementById('target-row-bb').style.display  = isNB ? '' : 'none';
+  document.getElementById('target-row-mag').style.display = isNB ? 'none' : '';
+
+  // Auto-select natural broadband when switching to a NB filter
+  if (isNB && NB_LINE_FRAC[f]) {
+    bbBand = NB_LINE_FRAC[f].natural_bb;
+    ['r','V','g'].forEach(x =>
+      document.getElementById('bbband-' + x).classList.toggle('active', x === bbBand));
+  }
+  calc();
+}
+function setBbBand(b) {
+  bbBand = b;
+  ['r','V','g'].forEach(x =>
+    document.getElementById('bbband-' + x).classList.toggle('active', x === b));
+  calc();
+}
+function setSrcType(s) {
+  srcType = s;
+  ['pn','star','other'].forEach(x =>
+    document.getElementById('srctype-' + x).classList.toggle('active', x === s));
+  calc();
+}
+function setSrcModel(m) {
+  const prevModel = srcModel;
+  srcModel = m;
+  ['compact','extended'].forEach(x =>
+    document.getElementById('srcmodel-' + x).classList.toggle('active', x === m));
+  // Swap field labels: Compact = "Seeing"/"Source size" (FWHM); Extended = "Diameter"
+  if (m === 'extended') {
+    document.getElementById('mag-size-label').textContent = 'Diameter';
+    document.getElementById('mag-size-unit').textContent = '″';
+    document.getElementById('bb-size-label').textContent = 'Diameter';
+    document.getElementById('bb-size-unit').textContent = '″';
+    document.getElementById('sb-readout').style.display = '';
+    document.getElementById('snr-context-tag').style.display = '';
+    // Drop default S/N to 10 (per-pixel) when entering Extended mode
+    if (prevModel !== 'extended') setSnrPreset(10);
+  } else {
+    document.getElementById('mag-size-label').textContent = 'Seeing';
+    document.getElementById('mag-size-unit').textContent = '″';
+    document.getElementById('bb-size-label').textContent = 'Source size';
+    document.getElementById('bb-size-unit').textContent = '″ (FWHM)';
+    document.getElementById('sb-readout').style.display = 'none';
+    document.getElementById('snr-context-tag').style.display = 'none';
+    // Restore S/N=50 when returning to Compact
+    if (prevModel === 'extended') setSnrPreset(50);
+  }
+  calc();
+}
+function setSnrPreset(val) {
+  document.getElementById('snr-val').value = val;
+  document.getElementById('snr-slider').value = val;
+  calc();
+}
+function setMode(m) {
+  mode = m;
+  document.getElementById('input-snr').style.display = m === 'snr' ? '' : 'none';
+  document.getElementById('input-exp').style.display = m === 'exp' ? '' : 'none';
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode-' + m).classList.add('active');
+  calc();
+}
+function setSkyMode(s) {
+  skyMode = s;
+  document.getElementById('sky-panel-model').style.display = s === 'model' ? '' : 'none';
+  document.getElementById('sky-panel-custom').style.display = s === 'custom' ? '' : 'none';
+  document.querySelectorAll('.sky-toggle button').forEach(b => b.classList.remove('active'));
+  document.getElementById('sky-mode-' + s).classList.add('active');
+  calc();
+}
+function phaseName(alpha) {
+  if (alpha < 10) return 'full';
+  if (alpha < 80) return 'gibbous';
+  if (alpha < 100) return 'quarter';
+  if (alpha < 170) return 'crescent';
+  return 'new';
+}
+function fmt(x, digits = 1) {
+  if (!isFinite(x)) return '∞';
+  if (x >= 10000) return x.toExponential(2);
+  return x.toFixed(digits);
+}
+
+// === MAIN CALC ===
+function calc() {
+  const f = FILTERS[currentFilter];
+  const isNB = f.narrowband;
+  const isExtended = (srcModel === 'extended');
+
+  // Pull common inputs
+  const apMult = parseFloat(document.getElementById('ap-mult').value) || 1.5;
+  const satADU = parseFloat(document.getElementById('sat').value) || 60000;
+  const rn = parseFloat(document.getElementById('rn').value) || 1.7;
+
+  let mag, fwhm, altTarget, R_src, inputMag;
+  let m_natural_for_sb = NaN;  // mag in the band used for SB calc
+
+  if (isNB) {
+    // Narrowband filter: take input as a broadband (r/V/g) magnitude and
+    // convert to e-/s through the NB filter using source-type-specific line fractions.
+    inputMag = parseFloat(document.getElementById('bb-mag').value);
+    const srcSize = parseFloat(document.getElementById('bb-size').value);
+    altTarget = parseFloat(document.getElementById('alt-target-bb').value) || 60;
+    if (isNaN(inputMag) || isNaN(srcSize)) return;
+    fwhm = srcSize;
+
+    const nb = NB_LINE_FRAC[currentFilter];
+    const naturalBB = nb.natural_bb;  // 'r' for Hα/[SII], 'g' for [OIII]
+
+    // Convert input mag to magnitude in the NB filter's natural broadband
+    let m_natural = inputMag;
+    if (bbBand !== naturalBB) {
+      const m_V = (bbBand === 'V') ? inputMag : inputMag + V_TO_BAND[srcType][bbBand];
+      m_natural = m_V - V_TO_BAND[srcType][naturalBB];
+    }
+    m_natural_for_sb = m_natural;
+
+    // Source rate in the natural broadband at zenith
+    const f_natural = FILTERS[naturalBB];
+    const R_src_BB = Math.pow(10, -0.4 * (m_natural - f_natural.zp));
+
+    // Convert to NB rate based on source type
+    let nb_fraction;
+    if (srcType === 'pn') {
+      nb_fraction = nb.pn;
+    } else {
+      nb_fraction = (f.bandwidth_nm / 140) * 0.8;
+    }
+    R_src = R_src_BB * nb_fraction;
+    R_src *= Math.pow(10, -0.4 * f.k_ext * (airmass(altTarget) - 1));
+    mag = inputMag;
+  } else {
+    // Direct magnitude mode (broadband filters g/r/i)
+    mag = parseFloat(document.getElementById('mag').value);
+    fwhm = parseFloat(document.getElementById('fwhm').value);
+    altTarget = parseFloat(document.getElementById('alt-target').value) || 60;
+    if (isNaN(mag) || isNaN(fwhm)) return;
+    m_natural_for_sb = mag;
+    R_src = Math.pow(10, -0.4 * (mag - f.zp));
+    R_src *= Math.pow(10, -0.4 * f.k_ext * (airmass(altTarget) - 1));
+  }
+
+  const satE = satADU * GAIN;
+
+  // Sync slider with input for moon phase
+  const phaseInput = parseFloat(document.getElementById('moon-phase').value);
+  document.getElementById('phase-slider').value = phaseInput;
+  document.getElementById('phase-name').textContent = phaseName(phaseInput);
+
+  // === SKY ===
+  let skyM;
+  if (skyMode === 'custom') {
+    skyM = parseFloat(document.getElementById('sky-custom').value);
+    if (isNaN(skyM)) skyM = f.sky_dark;
+  } else {
+    const alpha = phaseInput;
+    const rho = parseFloat(document.getElementById('moon-sep').value) || 90;
+    const altMoon = parseFloat(document.getElementById('alt-moon').value) || -10;
+    skyM = computeSkyMag(currentFilter, alpha, rho, altMoon, altTarget);
+  }
+  document.getElementById('sky-mag-readout').textContent = skyM.toFixed(2) + ' mag/arcsec²';
+
+  // === SKY RATE ===
+  const R_sky_arcsec = Math.pow(10, -0.4 * (skyM - f.zp));
+  const R_sky_pix = R_sky_arcsec * PIXSCALE * PIXSCALE;
+
+  // === SOURCE GEOMETRY ===
+  // For COMPACT: total R_src is concentrated in a Gaussian PSF of FWHM=fwhm.
+  // For EXTENDED: total R_src is spread uniformly over a disk of diameter=fwhm (re-used field).
+  let r_arc, n_pix, f_ap, R_src_eff, peakRate_e;
+  let sb_natural = NaN;  // surface brightness in the natural broadband
+
+  if (isExtended) {
+    // Uniform disk: spread R_src over disk area; report S/N per pixel.
+    const D_arcsec = fwhm;  // diameter
+    const disk_area_arcsec2 = Math.PI * (D_arcsec / 2) * (D_arcsec / 2);
+    // Per-pixel source rate
+    const R_src_per_arcsec2 = R_src / disk_area_arcsec2;
+    R_src_eff = R_src_per_arcsec2 * PIXSCALE * PIXSCALE;  // e-/s per pixel
+    n_pix = 1;
+    f_ap = 1;  // all of "the source" (per pixel) is in the aperture (1 pixel)
+    r_arc = D_arcsec / 2;  // for footer display only
+    peakRate_e = R_src_eff;  // uniform: peak = mean
+    sb_natural = m_natural_for_sb + 2.5 * Math.log10(disk_area_arcsec2);
+  } else {
+    // Compact Gaussian source
+    r_arc = apMult * fwhm;
+    const r_pix = r_arc / PIXSCALE;
+    n_pix = Math.PI * r_pix * r_pix;
+    f_ap = encircled(fwhm, r_arc);
+    const peakFrac = peakFraction(fwhm, PIXSCALE);
+    peakRate_e = R_src * peakFrac;
+    R_src_eff = R_src;
+  }
+
+  const tSat = satE / (peakRate_e + R_sky_pix);
+
+  // Update SB readout
+  const sbReadout = document.getElementById('sb-readout-val');
+  if (isExtended && isFinite(sb_natural)) {
+    const labelBand = isNB ? NB_LINE_FRAC[currentFilter].natural_bb : currentFilter;
+    sbReadout.textContent = sb_natural.toFixed(1) + ' mag/arcsec² (' + labelBand + ')';
+  }
+
+  // === MODE ===
+  let t, snrInfo, c1Label, c1Value, c1Unit;
+  if (mode === 'snr') {
+    const target = parseFloat(document.getElementById('snr-val').value) || 50;
+    t = timeFromSNR(R_src_eff, R_sky_pix, n_pix, rn, target, f_ap);
+    snrInfo = snrFromTime(R_src_eff, R_sky_pix, n_pix, rn, t, f_ap);
+    c1Label = 'Required exposure';
+    c1Value = t < 1 ? t.toFixed(2) : t < 60 ? t.toFixed(1) : t.toFixed(0);
+    c1Unit = 's';
+  } else {
+    t = parseFloat(document.getElementById('exp-val').value) || 120;
+    snrInfo = snrFromTime(R_src_eff, R_sky_pix, n_pix, rn, t, f_ap);
+    c1Label = isExtended ? 'S/N per pixel' : 'Achieved S/N';
+    c1Value = snrInfo.snr.toFixed(1);
+    c1Unit = '';
+  }
+  if (mode === 'snr' && isExtended) c1Label = 'Required exposure (per-pixel S/N)';
+
+  const peakCounts_e = (peakRate_e + R_sky_pix) * t;
+  const peakCounts_ADU = peakCounts_e / GAIN;
+
+  // === REGIME ===
+  const totalVar = snrInfo.var_source + snrInfo.var_sky + snrInfo.var_read;
+  let regime = '';
+  if (snrInfo.var_source / totalVar > 0.6) regime = 'source-limited';
+  else if (snrInfo.var_sky / totalVar > 0.6) regime = 'sky-limited';
+  else if (snrInfo.var_read / totalVar > 0.6) regime = 'read-noise limited';
+  else regime = 'mixed regime';
+  document.getElementById('regime-tag').textContent = regime;
+
+  // === RESULTS ===
+  document.getElementById('results-body').innerHTML =
+    '<div class="result-cell"><div class="result-label">' + c1Label + '</div>' +
+    '<div class="result-num">' + c1Value + '<span class="result-unit">' + c1Unit + '</span></div></div>' +
+    '<div class="result-cell"><div class="result-label">Peak pixel</div>' +
+    '<div class="result-num">' + Math.round(peakCounts_ADU).toLocaleString() +
+    '<span class="result-unit">ADU</span></div></div>';
+
+  // === NOISE BARS ===
+  const v = [snrInfo.var_source, snrInfo.var_sky, snrInfo.var_read];
+  const vmax = Math.max(...v, 1e-30);
+  const vsum = v[0] + v[1] + v[2];
+  const labels = ['source', 'sky', 'read'];
+  const classes = ['source', 'sky', 'read'];
+  let nb = '';
+  for (let i = 0; i < 3; i++) {
+    const pct = v[i] / vsum * 100;
+    const widthPct = v[i] / vmax * 100;
+    nb += '<div class="noise-row">' +
+      '<span class="noise-name">' + labels[i] + '</span>' +
+      '<span class="noise-bar-track"><span class="noise-bar-fill ' + classes[i] +
+      '" style="width:' + widthPct.toFixed(1) + '%"></span></span>' +
+      '<span class="noise-val">' + fmt(Math.sqrt(v[i]), 1) + ' e⁻ <span class="pct">(' +
+      pct.toFixed(0) + '%)</span></span>' +
+      '</div>';
+  }
+  document.getElementById('noise-bars').innerHTML = nb;
+
+  // === FOOTER ===
+  let footerLeft;
+  if (isExtended) {
+    footerLeft = 'Disk: D = ' + fwhm.toFixed(1) + '″, SB = ' +
+                 (isFinite(sb_natural) ? sb_natural.toFixed(1) : '—') + ' mag/arcsec²';
+  } else {
+    footerLeft = 'Aperture: r = ' + r_arc.toFixed(2) + '″ (' + n_pix.toFixed(0) +
+                 ' pix, ' + (f_ap * 100).toFixed(0) + '% EE)';
+  }
+  document.getElementById('results-footer').innerHTML =
+    '<span>' + footerLeft + '</span>' +
+    '<span>Sat. limit: ' + (tSat < 1 ? tSat.toFixed(2) : tSat.toFixed(1)) + ' s</span>';
+
+  // === SATURATION WARNING ===
+  const warn = document.getElementById('warning');
+  if (peakCounts_ADU > satADU) {
+    if (mode === 'snr') {
+      const nFrames = Math.ceil(t / tSat);
+      const snrFrame = snrFromTime(R_src_eff, R_sky_pix, n_pix, rn, tSat, f_ap).snr;
+      warn.style.display = 'block';
+      warn.textContent = 'Saturates. Use ' + nFrames + ' × ' +
+        (tSat < 1 ? tSat.toFixed(2) : tSat.toFixed(1)) +
+        ' s (S/N ≈ ' + Math.round(snrFrame) + '/frame, ≈ ' +
+        Math.round(snrFrame * Math.sqrt(nFrames)) + ' stacked)';
+    } else {
+      warn.style.display = 'block';
+      warn.textContent = 'Saturates at ' + t + ' s. Max single exposure: ' +
+        (tSat < 1 ? tSat.toFixed(2) : tSat.toFixed(1)) + ' s.';
+    }
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+// Sync phase slider <-> phase number input
+document.getElementById('phase-slider').addEventListener('input', function() {
+  document.getElementById('moon-phase').value = this.value;
+  calc();
+});
+
+calc();
+</script>
+</body>
+</html>
